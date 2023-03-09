@@ -2,3 +2,10 @@
 
 who am i?
 
+---
+
+fn main() {
+  println!("hello");
+}  
+  
+---
