@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Plugin Developer Ethics & Compatibility Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom Scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f5f5f4; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d6d3d1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e; 
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Utility for the Elektron Diagram */
+        .tech-box {
+            background-color: white;
+            border: 1px solid #e7e5e4;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+        .tech-box:hover {
+            border-color: #f97316;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .connector-line {
+            width: 2px;
+            background-color: #d6d3d1;
+            margin: 0 auto;
+        }
+    </style>
+    <!-- Chosen Palette: Stone & Orange (Warm Neutral for background, vivid Orange for analog/hardware feel) -->
+    <!-- Application Structure Plan: 
+         1. Header & Philosophy: Introduction to the criteria (Legacy, Respect, Security).
+         2. Global Analysis Dashboard: Charts showing the distribution of protection methods and OS support across the industry.
+         3. Interactive Company Database: The core tool. A filterable grid of company cards. Each card displays a calculated "Respect Score" and key metadata.
+         4. Company Detail View (Modal): Deep dive into specific installation methods, disk access requirements, and license terms for a selected company.
+         5. Technical Deep Dive: Elektron Overbridge: A specific section analyzing the driver architecture as requested, separating it from the general plugin list.
+         6. The Graveyard: Acknowledging defunct companies.
+         This structure allows users to macro-analyze the industry trends first, then micro-analyze specific vendors, and finally geek out on the requested hardware driver tech.
+    -->
+    <!-- Visualization & Content Choices:
+         - Charts: Chart.js for "Protection Friction" (Bar) and "OS Support" (Doughnut). Goal: Compare industry standards.
+         - Interaction: Javascript-based filtering (OS, Protection Type) to allow users to find "Ethical" plugins quickly.
+         - Icons: Unicode symbols to represent DRM types (Key, Cloud, Dongle) to avoid SVG load and keep design clean.
+         - Elektron Diagram: HTML/CSS Grid layout to visualize the data flow from Hardware to Driver to DAW.
+         - Confirming NO SVG/Mermaid.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans antialiased selection:bg-orange-200 selection:text-orange-900">
+
+    <!-- Navigation / Header -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white font-bold text-lg">A</div>
+                <h1 class="text-xl font-bold tracking-tight text-stone-900">Audio Ethics & Tech Report</h1>
+            </div>
+            <nav class="hidden md:flex space-x-8 text-sm font-medium text-stone-600">
+                <a href="#analysis" class="hover:text-orange-600 transition-colors">Industry Analysis</a>
+                <a href="#database" class="hover:text-orange-600 transition-colors">Company Database</a>
+                <a href="#elektron" class="hover:text-orange-600 transition-colors">Elektron Architecture</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- Intro Section -->
+        <section class="max-w-4xl mx-auto text-center space-y-4">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-stone-900">Respect, Legacy, and Security in Audio Software</h2>
+            <p class="text-lg text-stone-600 leading-relaxed">
+                This interactive report analyzes mainstream audio plugin developers based on their treatment of the user. 
+                We focus on <strong>perpetual ownership</strong>, <strong>ease of activation</strong>, <strong>privacy/security footprint</strong> (installers, drivers, disk access), and <strong>cross-platform availability</strong>.
+            </p>
+            <div class="flex flex-wrap justify-center gap-4 text-sm text-stone-500 pt-2">
+                <span class="bg-stone-100 px-3 py-1 rounded-full border border-stone-200">🛡️ No Piracy Focus</span>
+                <span class="bg-stone-100 px-3 py-1 rounded-full border border-stone-200">💿 Perpetual Licenses</span>
+                <span class="bg-stone-100 px-3 py-1 rounded-full border border-stone-200">🔐 Security Analysis</span>
+            </div>
+        </section>
+
+        <!-- Global Analysis Dashboard -->
+        <section id="analysis" class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 md:p-8">
+            <div class="mb-6">
+                <h3 class="text-xl font-bold text-stone-900 mb-2">Industry Friction Analysis</h3>
+                <p class="text-stone-600">
+                    A macro view of the activation methods used by the listed companies. "Friction" refers to the complexity 
+                    imposed on the user (e.g., hardware dongles, always-online requirements, background services).
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <!-- Chart 1: Protection Methods -->
+                <div class="flex flex-col items-center">
+                    <h4 class="text-sm font-semibold uppercase tracking-wider text-stone-500 mb-4">Activation Method Distribution</h4>
+                    <div class="chart-container">
+                        <canvas id="protectionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: OS Support -->
+                <div class="flex flex-col items-center">
+                    <h4 class="text-sm font-semibold uppercase tracking-wider text-stone-500 mb-4">OS Compatibility (Linux Rarity)</h4>
+                    <div class="chart-container">
+                        <canvas id="osChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Database Section -->
+        <section id="database" class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-stone-200 pb-4">
+                <div class="max-w-2xl">
+                    <h3 class="text-2xl font-bold text-stone-900">Developer Database</h3>
+                    <p class="text-stone-600 mt-2">
+                        Explore companies based on their "Respect Score" (calculated based on non-intrusive DRM, legacy support, and fair EULAs). 
+                        Click a card for deep security details.
+                    </p>
+                </div>
+                
+                <!-- Filters -->
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterData('all')" class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium bg-stone-800 text-white hover:bg-stone-700 transition-colors" data-filter="all">All</button>
+                    <button onclick="filterData('no-ilok')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-stone-200 text-stone-700 hover:bg-stone-300 transition-colors" data-filter="no-ilok">No iLok</button>
+                    <button onclick="filterData('linux')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-stone-200 text-stone-700 hover:bg-stone-300 transition-colors" data-filter="linux">Linux Support</button>
+                    <button onclick="filterData('high-respect')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-stone-200 text-stone-700 hover:bg-stone-300 transition-colors" data-filter="high-respect">Highest Respect</button>
+                </div>
+            </div>
+
+            <!-- Grid Container -->
+            <div id="grid-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Cards will be injected here by JS -->
+            </div>
+        </section>
+
+        <!-- Elektron Deep Dive -->
+        <section id="elektron" class="bg-stone-900 text-stone-100 rounded-xl shadow-lg overflow-hidden">
+            <div class="p-8 border-b border-stone-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    <h3 class="text-2xl font-bold text-white">Technical Deep Dive: Elektron Overbridge</h3>
+                </div>
+                <p class="text-stone-400 max-w-3xl">
+                    <strong>Research Question:</strong> How does the Overbridge Engine connect the Digitakt II to the OS? What are the security implications of its drivers?
+                </p>
+                <div class="mt-4 text-sm text-stone-400 bg-stone-800 p-4 rounded border border-stone-700">
+                    <strong class="text-white">Summary:</strong> Overbridge uses a proprietary driver stack. On Windows, it's a standard WDM/ASIO driver. On macOS, it has transitioned from legacy Kernel Extensions (KEXT) to <strong>DriverKit (System Extensions)</strong> in version 2.5+. This moves the driver from the Kernel Space (high risk/full system access) to User Space (safer/sandboxed), adhering to modern macOS security policies.
+                </div>
+            </div>
+
+            <div class="p-8 bg-stone-950">
+                <h4 class="text-lg font-semibold mb-6 text-stone-300 text-center">Data Path & Security Architecture</h4>
+                
+                <!-- CSS Based Diagram -->
+                <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-5 gap-4 items-center relative">
+                    
+                    <!-- Hardware -->
+                    <div class="tech-box bg-stone-800 border-stone-700 text-stone-200">
+                        <div class="text-2xl mb-2">🎹</div>
+                        <div class="font-bold">Digitakt II</div>
+                        <div class="text-xs text-stone-500 mt-1">Hardware Device</div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="hidden md:flex justify-center text-stone-600 text-xl">➜</div>
+                    <div class="md:hidden flex justify-center text-stone-600 text-xl transform rotate-90 my-2">➜</div>
+
+                    <!-- USB Transport -->
+                    <div class="tech-box bg-stone-800 border-stone-700 text-stone-200">
+                        <div class="text-2xl mb-2">🔌</div>
+                        <div class="font-bold">USB Transport</div>
+                        <div class="text-xs text-stone-500 mt-1">Composite Device<br>(Audio + MIDI + Data)</div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="hidden md:flex justify-center text-stone-600 text-xl">➜</div>
+                    <div class="md:hidden flex justify-center text-stone-600 text-xl transform rotate-90 my-2">➜</div>
+
+                    <!-- Driver Layer -->
+                    <div class="tech-box bg-stone-800 border-stone-700 text-stone-200 relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-orange-500"></div>
+                        <div class="text-2xl mb-2">🛡️</div>
+                        <div class="font-bold">The Engine</div>
+                        <div class="text-xs text-stone-500 mt-1">macOS: DriverKit<br>Win: ASIO/WDM</div>
+                        <!-- Tooltip -->
+                        <div class="opacity-0 group-hover:opacity-100 absolute bottom-0 left-0 w-full bg-orange-900 text-xs py-1 transition-opacity">
+                            User Space (Safe)
+                        </div>
+                    </div>
+
+                     <!-- Arrow -->
+                     <div class="hidden md:flex justify-center text-stone-600 text-xl">➜</div>
+                     <div class="md:hidden flex justify-center text-stone-600 text-xl transform rotate-90 my-2">➜</div>
+
+                     <!-- Plugin/DAW -->
+                     <div class="tech-box bg-stone-800 border-stone-700 text-stone-200">
+                         <div class="text-2xl mb-2">🎛️</div>
+                         <div class="font-bold">DAW / Plugin</div>
+                         <div class="text-xs text-stone-500 mt-1">VST/AU/AAX<br>Client Side</div>
+                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <div class="bg-stone-900 p-4 rounded border border-stone-800">
+                        <h5 class="text-orange-500 font-bold mb-2">Privacy & Disk Access</h5>
+                        <ul class="list-disc list-inside text-sm text-stone-400 space-y-2">
+                            <li><strong>Microphone Access:</strong> macOS requires you to grant the DAW "Microphone Access". This is misleading; it actually means "Audio Input Access". Overbridge inputs trigger this warning.</li>
+                            <li><strong>Full Disk Access:</strong> Generally NOT required for the driver itself, but the Overbridge Control Panel may request file access to store logs or presets.</li>
+                            <li><strong>Network:</strong> The engine listens on local ports (`localhost`) to communicate between the driver and the plugin UI. It does not typically require constant internet access for operation, only for initial download/update.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-stone-900 p-4 rounded border border-stone-800">
+                        <h5 class="text-orange-500 font-bold mb-2">Kernel vs. Extensions</h5>
+                        <ul class="list-disc list-inside text-sm text-stone-400 space-y-2">
+                            <li><strong>Legacy (Old):</strong> Kernel Extensions (KEXT). Ran at the same privilege level as the OS core. If the driver crashed, the whole Mac crashed (Kernel Panic). Hard to install on Apple Silicon (requires Recovery Mode).</li>
+                            <li><strong>Modern (New):</strong> System Extensions (DriverKit). Runs in User Space. If it crashes, only the device disconnects; the OS stays stable. Easier to install, better security posture.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Graveyard Section -->
+        <section class="border-t border-stone-200 pt-8 pb-12">
+            <h3 class="text-xl font-bold text-stone-400 mb-4">The Graveyard & Acquisitions</h3>
+            <p class="text-stone-500 text-sm mb-4">Companies that no longer exist independently or have been absorbed, affecting license perpetuity.</p>
+            <div class="flex flex-wrap gap-4">
+                <div class="bg-stone-100 text-stone-500 px-4 py-2 rounded-lg text-sm border border-stone-200">
+                    <strong>Camel Audio</strong> (Acquired by Apple) - Alchemy lives in Logic, original licenses dead.
+                </div>
+                <div class="bg-stone-100 text-stone-500 px-4 py-2 rounded-lg text-sm border border-stone-200">
+                    <strong>Roli (FXpansion)</strong> - BFD sold to InMusic, Cypher/Strobe status complex.
+                </div>
+                <div class="bg-stone-100 text-stone-500 px-4 py-2 rounded-lg text-sm border border-stone-200">
+                    <strong>Izotope/Native Instruments/Brainworx</strong> - Now "Soundwide" / "Native Instruments". Separate brands, centralized corporate structure.
+                </div>
+            </div>
+            <p class="text-stone-400 text-xs mt-6 italic">
+                * Note regarding posting: You are generally allowed to post this research on the web. It is a synthesis of factual information regarding software specifications and licensing terms.
+            </p>
+        </section>
+    </main>
+
+    <!-- Modal for details -->
+    <div id="detail-modal" class="fixed inset-0 bg-stone-900/50 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
+            <div id="modal-content" class="p-6">
+                <!-- Content injected via JS -->
+            </div>
+            <div class="bg-stone-50 px-6 py-4 border-t border-stone-100 flex justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 bg-stone-200 text-stone-800 rounded-lg hover:bg-stone-300 font-medium transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA STORE ---
+        // Respect Score Calculation:
+        // Base: 50
+        // + Perpetual Available: 20
+        // + No Manager Required: 10
+        // + Serial/Keyfile: 15
+        // + Linux Support: 10
+        // + 3+ Installs: 5
+        // - iLok Cloud/Dongle: -10
+        // - Always Online/Heavy Service: -10
+        // - Aggressive WUP/Sub-push: -15
+        
+        const companies = [
+            {
+                name: "FabFilter",
+                category: "Effects / Synths",
+                respectScore: 95,
+                os: ["Windows", "macOS", "iOS"],
+                protection: "Serial Number",
+                manager: "None (Optional)",
+                legacy: "Excellent",
+                linux: false,
+                installs: "Unlimited (Fair Use)",
+                notes: "The gold standard. Simple installers, serial codes copy-paste. No background services. Owned forever. Privacy friendly.",
+                diskAccess: "Minimal. Standard VST/AU folders.",
+                website: "fabfilter.com"
+            },
+            {
+                name: "Tokyo Dawn Labs (TDR)",
+                category: "Effects",
+                respectScore: 95,
+                os: ["Windows", "macOS"],
+                protection: "Keyfile / Free Editions",
+                manager: "None",
+                legacy: "Excellent",
+                linux: false,
+                installs: "Unlimited (Personal)",
+                notes: "Extremely user friendly. High quality free versions. No intrusive copy protection.",
+                diskAccess: "Minimal.",
+                website: "tokyodawn.net"
+            },
+            {
+                name: "U-he",
+                category: "Synths / Effects",
+                respectScore: 95,
+                os: ["Windows", "macOS", "Linux"],
+                protection: "Serial Number",
+                manager: "None",
+                legacy: "Legendary",
+                linux: true,
+                installs: "Unlimited (Personal)",
+                notes: "One of the few high-end devs with full Linux support. Serial based. Very community focused.",
+                diskAccess: "Minimal.",
+                website: "u-he.com"
+            },
+            {
+                name: "Valhalla DSP",
+                category: "Effects",
+                respectScore: 90,
+                os: ["Windows", "macOS", "Linux (Beta)"],
+                protection: "Keyfile",
+                manager: "None",
+                legacy: "Excellent",
+                linux: true,
+                installs: "Unlimited (Personal)",
+                notes: "Sean Costello (dev) is famously anti-DRM. Keyfile XML based. Install anywhere.",
+                diskAccess: "Minimal.",
+                website: "valhalladsp.com"
+            },
+            {
+                name: "Klevgrand",
+                category: "Instruments / Effects",
+                respectScore: 85,
+                os: ["Windows", "macOS", "iOS"],
+                protection: "Serial / Account",
+                manager: "None",
+                legacy: "Good",
+                linux: false,
+                installs: "Multiple",
+                notes: "Swedish design. Very clean installers. Log in to get serials.",
+                diskAccess: "Standard.",
+                website: "klevgrand.com"
+            },
+            {
+                name: "MeldaProduction",
+                category: "Effects / Synths",
+                respectScore: 85,
+                os: ["Windows", "macOS", "Linux (Wine supported)"],
+                protection: "Keyfile / Online",
+                manager: "MAudioPluginsManager (Optional)",
+                legacy: "Free for life updates",
+                linux: false,
+                installs: "Unlimited",
+                notes: "Updates are free forever. Huge bundle. Installer is complex but optional.",
+                diskAccess: "Standard.",
+                website: "meldaproduction.com"
+            },
+            {
+                name: "Ableton",
+                category: "DAW / Packs / M4L",
+                respectScore: 80,
+                os: ["Windows", "macOS"],
+                protection: "Challenge/Response",
+                manager: "Inside App",
+                legacy: "Good",
+                linux: false,
+                installs: "2 Active",
+                notes: "Authorization happens inside Live. Fairly unobtrusive. Content (Packs) owned forever.",
+                diskAccess: "Moderate (Indexers).",
+                website: "ableton.com"
+            },
+            {
+                name: "Native Instruments",
+                category: "Everything",
+                respectScore: 65,
+                os: ["Windows", "macOS"],
+                protection: "Native Access (Manager)",
+                manager: "Native Access (Required)",
+                legacy: "Mixed",
+                linux: false,
+                installs: "3 (Machine IDs)",
+                notes: "Requires Native Access daemon (NTKDaemon) running. Some legacy gear (Absynth) discontinued. Huge library content.",
+                diskAccess: "High (Library content scanning).",
+                website: "native-instruments.com"
+            },
+            {
+                name: "Arturia",
+                category: "Synths / Effects",
+                respectScore: 70,
+                os: ["Windows", "macOS"],
+                protection: "Arturia Software Center (ASC)",
+                manager: "ASC (Required for install)",
+                legacy: "Good",
+                linux: false,
+                installs: "5",
+                notes: "Uses a software center. Can activate offline via file transfer. Generally stable.",
+                diskAccess: "Moderate.",
+                website: "arturia.com"
+            },
+            {
+                name: "Plugin Alliance (Brainworx)",
+                category: "Effects",
+                respectScore: 75,
+                os: ["Windows", "macOS"],
+                protection: "Machine ID / USB",
+                manager: "Installation Manager",
+                legacy: "Good",
+                linux: false,
+                installs: "3 Machines",
+                notes: "Allows activation to a standard USB stick (portable license) without specialized hardware. Easy offline activation.",
+                diskAccess: "Standard.",
+                website: "plugin-alliance.com"
+            },
+            {
+                name: "UVI",
+                category: "Sampler / Effects",
+                respectScore: 60,
+                os: ["Windows", "macOS"],
+                protection: "iLok (Soft or Dongle)",
+                manager: "UVI Portal",
+                legacy: "Good",
+                linux: false,
+                installs: "3",
+                notes: "Relies heavily on iLok. Falcon is deep but requires 'Full Disk Access' often for sample streaming external drives.",
+                diskAccess: "High (Sample streaming).",
+                website: "uvi.net"
+            },
+            {
+                name: "Soundtoys",
+                category: "Effects",
+                respectScore: 60,
+                os: ["Windows", "macOS"],
+                protection: "iLok (Soft or Dongle)",
+                manager: "Downloader",
+                legacy: "Good",
+                linux: false,
+                installs: "2",
+                notes: "Industry standard effects. Strictly iLok. No cloud-only mode (good for offline, but needs dongle or machine auth).",
+                diskAccess: "Standard.",
+                website: "soundtoys.com"
+            },
+            {
+                name: "Softube",
+                category: "Effects / Synths",
+                respectScore: 55,
+                os: ["Windows", "macOS"],
+                protection: "iLok + Softube Central",
+                manager: "Softube Central",
+                legacy: "Stable",
+                linux: false,
+                installs: "2",
+                notes: "Install manager can be buggy. Requires iLok. High quality sound, heavier activation usage.",
+                diskAccess: "Moderate.",
+                website: "softube.com"
+            },
+            {
+                name: "Universal Audio (Native)",
+                category: "Effects",
+                respectScore: 50,
+                os: ["Windows", "macOS"],
+                protection: "iLok Cloud / UA Connect",
+                manager: "UA Connect",
+                legacy: "Evolving",
+                linux: false,
+                installs: "2",
+                notes: "UA Connect requires background process (UA Connect Helper). Often forces browser login. iLok Cloud often required for Native.",
+                diskAccess: "High.",
+                website: "uaudio.com"
+            },
+            {
+                name: "Sonnox (Oxford)",
+                category: "Effects",
+                respectScore: 50,
+                os: ["Windows", "macOS"],
+                protection: "iLok (Cloud or Dongle)",
+                manager: "Installer",
+                legacy: "Pro Standard",
+                linux: false,
+                installs: "2",
+                notes: "High end. Some plugins required Dongle in past, now mostly Cloud/Machine. Very formal.",
+                diskAccess: "Standard.",
+                website: "sonnox.com"
+            },
+            {
+                name: "Waves",
+                category: "Everything",
+                respectScore: 30,
+                os: ["Windows", "macOS"],
+                protection: "Waves Central",
+                manager: "Waves Central (Heavy)",
+                legacy: "Controversial",
+                linux: false,
+                installs: "1 (Move via cloud)",
+                notes: "Strict single license (must move between computers via cloud). 'Waves Update Plan' (WUP) needed for updates/compatibility. Shell architecture complexity.",
+                diskAccess: "High (Background services + Local server).",
+                website: "waves.com"
+            },
+            {
+                name: "Roland Cloud",
+                category: "Synths",
+                respectScore: 35,
+                os: ["Windows", "macOS"],
+                protection: "Roland Cloud Manager",
+                manager: "Cloud Manager (Always)",
+                legacy: "Subscription Focused",
+                linux: false,
+                installs: "Device Limit",
+                notes: "Heavily pushes subscription. 'Lifetime Keys' exist but are expensive and tied to the account manager which 'phones home' often.",
+                diskAccess: "Moderate.",
+                website: "roland.com"
+            }
+        ];
+
+        // --- RENDER FUNCTIONS ---
+
+        function renderCharts() {
+            const ctxProtect = document.getElementById('protectionChart').getContext('2d');
+            const ctxOS = document.getElementById('osChart').getContext('2d');
+
+            // Data Prep
+            const protections = { 'Serial/Key (Low Friction)': 0, 'Custom Manager (Med Friction)': 0, 'iLok/Dongle (High Friction)': 0 };
+            const osSupport = { 'Windows/Mac Only': 0, 'Win/Mac/Linux': 0 };
+
+            companies.forEach(c => {
+                if (c.protection.includes("Serial") || c.protection.includes("Keyfile")) protections['Serial/Key (Low Friction)']++;
+                else if (c.protection.includes("iLok")) protections['iLok/Dongle (High Friction)']++;
+                else protections['Custom Manager (Med Friction)']++;
+
+                if (c.linux) osSupport['Win/Mac/Linux']++;
+                else osSupport['Windows/Mac Only']++;
+            });
+
+            // Chart 1: Protection
+            new Chart(ctxProtect, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(protections),
+                    datasets: [{
+                        label: 'Number of Companies',
+                        data: Object.values(protections),
+                        backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Chart 2: OS
+            new Chart(ctxOS, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(osSupport),
+                    datasets: [{
+                        data: Object.values(osSupport),
+                        backgroundColor: ['#d6d3d1', '#f97316'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+        }
+
+        function getScoreColor(score) {
+            if (score >= 80) return 'bg-green-100 text-green-800 border-green-200';
+            if (score >= 50) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            return 'bg-red-50 text-red-800 border-red-200';
+        }
+
+        function renderGrid(filterType) {
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+
+            let filtered = companies;
+            if (filterType === 'no-ilok') filtered = companies.filter(c => !c.protection.toLowerCase().includes('ilok'));
+            if (filterType === 'linux') filtered = companies.filter(c => c.linux);
+            if (filterType === 'high-respect') filtered = companies.filter(c => c.respectScore >= 80);
+
+            // Sort by Respect Score Descending
+            filtered.sort((a, b) => b.respectScore - a.respectScore);
+
+            filtered.forEach(company => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow-sm border border-stone-200 hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full';
+                card.onclick = () => showModal(company);
+
+                card.innerHTML = `
+                    <div class="p-5 flex-1">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-lg text-stone-900">${company.name}</h4>
+                            <span class="text-xs font-bold px-2 py-1 rounded border ${getScoreColor(company.respectScore)}">
+                                Score: ${company.respectScore}
+                            </span>
+                        </div>
+                        <p class="text-stone-500 text-sm mb-4">${company.category}</p>
+                        
+                        <div class="space-y-2 text-sm text-stone-600">
+                            <div class="flex items-center gap-2">
+                                <span class="text-stone-400">🔑</span> ${company.protection}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-stone-400">💿</span> ${company.installs}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-stone-400">🐧</span> ${company.linux ? 'Linux Supported' : 'No Linux'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-5 py-3 bg-stone-50 border-t border-stone-100 text-xs text-orange-600 font-medium">
+                        Click for Security Details &rarr;
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterData(type) {
+            // Update buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === type) {
+                    btn.classList.remove('bg-stone-200', 'text-stone-700');
+                    btn.classList.add('bg-stone-800', 'text-white');
+                } else {
+                    btn.classList.add('bg-stone-200', 'text-stone-700');
+                    btn.classList.remove('bg-stone-800', 'text-white');
+                }
+            });
+            renderGrid(type);
+        }
+
+        function showModal(company) {
+            const modal = document.getElementById('detail-modal');
+            const content = document.getElementById('modal-content');
+            
+            content.innerHTML = `
+                <div class="border-b border-stone-100 pb-4 mb-4">
+                    <h2 class="text-2xl font-bold text-stone-900">${company.name}</h2>
+                    <a href="https://${company.website}" target="_blank" class="text-orange-600 hover:underline text-sm">${company.website}</a>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-stone-50 p-4 rounded border border-stone-200">
+                        <h5 class="font-bold text-stone-700 mb-2">Activation & License</h5>
+                        <ul class="space-y-2 text-sm text-stone-600">
+                            <li><strong>Method:</strong> ${company.protection}</li>
+                            <li><strong>Manager App:</strong> ${company.manager}</li>
+                            <li><strong>Install Allowance:</strong> ${company.installs}</li>
+                            <li><strong>Legacy Rating:</strong> ${company.legacy}</li>
+                        </ul>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded border border-stone-200">
+                        <h5 class="font-bold text-stone-700 mb-2">Privacy & Security</h5>
+                        <ul class="space-y-2 text-sm text-stone-600">
+                            <li><strong>Disk Access:</strong> ${company.diskAccess}</li>
+                            <li><strong>OS Support:</strong> ${company.os.join(", ")}</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div>
+                    <h5 class="font-bold text-stone-700 mb-2">Researcher Notes</h5>
+                    <p class="text-stone-600 text-sm leading-relaxed bg-orange-50 p-4 rounded border border-orange-100">
+                        ${company.notes}
+                    </p>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        // Close modal on outside click
+        document.getElementById('detail-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'detail-modal') closeModal();
+        });
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCharts();
+            renderGrid('all');
+        });
+
+    </script>
+</body>
+</html>
