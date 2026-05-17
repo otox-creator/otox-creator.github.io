@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Realistic WebGL Water - Advanced Controls</title>
+    <title>Interactive WebGL Water - Orbit Controls (Fixed)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         /* Defaults to Monospace */
         body {
             font-family: "Menlo", "Consolas", monospace; 
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4; 
+            /* Removed CSS background-color so WebGL can handle it perfectly */
             color: #333;
             display: flex;
             justify-content: center;
             align-items: center;
-            /* iOS Fix: Use dvh to prevent Safari address bar jumps */
             min-height: 100vh;
             min-height: 100dvh; 
             overflow: hidden; 
-            transition: background-color 0.3s ease;
         }
 
         #canvas-container {
@@ -28,10 +27,15 @@
             top: 0;
             left: 0;
             width: 100vw;
-            /* iOS Fix: Use dvh for the WebGL canvas */
             height: 100vh;
             height: 100dvh; 
-            z-index: -1; 
+            /* BUG FIX: Brought canvas forward to 0 so it catches mouse drags */
+            z-index: 0; 
+            cursor: grab;
+        }
+        
+        #canvas-container:active {
+            cursor: grabbing;
         }
 
         /* Main Center UI */
@@ -46,7 +50,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            z-index: 1;
+            /* BUG FIX: Keep UI safely above the canvas */
+            z-index: 10;
             pointer-events: none; 
             transition: background-color 0.3s ease, border 0.3s ease, box-shadow 0.3s ease;
         }
@@ -62,17 +67,13 @@
             display: inline-block;
             -webkit-box-reflect: below -15px linear-gradient(transparent 40%, rgba(0,0,0,0.5));
             cursor: pointer;
-            /* iOS Fix: Forces text to never wrap so the reflection stays aligned */
             white-space: nowrap; 
         }
 
         h1 span {
             display: inline-block;
             font-family: inherit; 
-            
-            /* iOS Fix: Fluid Typography. Scales between 2.5rem and 5rem based on screen width */
             font-size: clamp(2.5rem, 14vw, 5rem); 
-            
             font-weight: 900;
             letter-spacing: 0.05em;
             color: #fff;
@@ -125,7 +126,6 @@
 
         /* --- Dark Mode Palette --- */
         .dark-mode {
-            background-color: #1a1a1a;
             color: #f4f4f4;
         }
         .dark-mode .container {
@@ -151,7 +151,6 @@
 
         .standard-font { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
         
-        /* --- Wave Animation --- */
         .dance span {
             animation: wave 1.5s infinite ease-in-out;
             animation-delay: calc(var(--index) * 0.08s);
@@ -163,23 +162,85 @@
         }
 
         /* --- Advanced Control Panel (Bottom Right) --- */
-        .adv-panel {
+        .adv-panel-wrapper {
             position: fixed;
             bottom: 20px;
             right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            /* BUG FIX: Keep UI safely above the canvas */
+            z-index: 20;
+            pointer-events: none; 
+        }
+
+        .panel-toggle-btn {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px 8px 0 0;
+            padding: 4px 16px;
+            cursor: pointer;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            border-bottom: none;
+            transition: all 0.3s ease;
+        }
+
+        .panel-toggle-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.3s ease;
+        }
+
+        .dark-mode .panel-toggle-btn {
+            background: rgba(30, 30, 30, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #eee;
+        }
+
+        .adv-panel {
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             padding: 1.2em;
-            border-radius: 12px;
+            border-radius: 12px 0 12px 12px;
             border: 1px solid rgba(255, 255, 255, 0.3);
             display: flex;
             flex-direction: column;
             gap: 1em;
-            z-index: 10;
             box-shadow: 0 4px 16px rgba(0,0,0,0.2);
             color: #333;
-            transition: all 0.3s ease;
+            pointer-events: auto;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            transform-origin: bottom right;
+        }
+
+        /* Collapsed State */
+        .adv-panel-wrapper.collapsed .adv-panel {
+            transform: translateY(120%) scale(0.9);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .adv-panel-wrapper.collapsed .panel-toggle-btn svg {
+            transform: rotate(180deg);
+        }
+        .adv-panel-wrapper.collapsed .panel-toggle-btn {
+            border-radius: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            transform: translateY(10px);
+        }
+        .dark-mode .adv-panel-wrapper.collapsed .panel-toggle-btn {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .dark-mode .adv-panel {
@@ -188,82 +249,27 @@
             color: #eee;
         }
 
-        .slider-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5em;
-            font-size: 0.85rem;
-        }
-        
-        .slider-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1em;
-        }
-
-        .slider-row input[type=range] {
-            width: 100px;
-            cursor: pointer;
-        }
-
-        .pbr-toggles {
-            display: flex;
-            justify-content: space-between;
-            gap: 0.5em;
-        }
+        .slider-group { display: flex; flex-direction: column; gap: 0.5em; font-size: 0.85rem; }
+        .slider-row { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
+        .slider-row input[type=range] { width: 100px; cursor: pointer; }
+        .pbr-toggles { display: flex; justify-content: space-between; gap: 0.5em; }
 
         .pbr-btn {
-            flex: 1;
-            padding: 6px;
-            font-size: 0.75rem;
-            background: rgba(0,0,0,0.1);
-            border: 1px solid rgba(0,0,0,0.2);
-            border-radius: 6px;
-            color: inherit;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
+            flex: 1; padding: 6px; font-size: 0.75rem; background: rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.2); border-radius: 6px; color: inherit;
+            cursor: pointer; transition: all 0.2s; font-family: inherit;
         }
-
-        .dark-mode .pbr-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
+        .dark-mode .pbr-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
         .pbr-btn:hover { background: rgba(0, 150, 255, 0.3); }
-        .pbr-btn.active {
-            background: rgba(0, 200, 255, 0.5);
-            border-color: rgba(0, 255, 255, 0.6);
-            color: #fff;
-        }
+        .pbr-btn.active { background: rgba(0, 200, 255, 0.5); border-color: rgba(0, 255, 255, 0.6); color: #fff; }
 
-        /* --- iOS Mobile Responsiveness --- */
         @media (max-width: 600px) {
-            .container {
-                /* Shrink the massive desktop padding so the text has room to breathe */
-                padding: 2em 1.5em 1.5em 1.5em; 
-                width: 85%; 
-                box-sizing: border-box;
-            }
-            .adv-panel {
-                bottom: 15px;
-                right: 15px;
-                left: 15px; /* Stretch across bottom */
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: space-around;
-                padding: 1em;
-            }
-            .slider-group {
-                flex: 1;
-                min-width: 200px;
-            }
-            .pbr-toggles {
-                flex: 1;
-                min-width: 200px;
-                align-items: center;
-            }
+            .container { padding: 2em 1.5em 1.5em 1.5em; width: 85%; box-sizing: border-box; }
+            .adv-panel-wrapper { bottom: 15px; right: 15px; left: 15px; align-items: stretch; }
+            .panel-toggle-btn { align-self: flex-end; width: 60px; }
+            .adv-panel { flex-direction: row; flex-wrap: wrap; justify-content: space-around; padding: 1em; border-radius: 12px 0 12px 12px; }
+            .slider-group { flex: 1; min-width: 200px; }
+            .pbr-toggles { flex: 1; min-width: 200px; align-items: center; }
         }
     </style>
 </head>
@@ -274,66 +280,72 @@
         <h1 id="target-heading">
             <a href="https://linktr.ee/mmauab" target="_blank" rel="noopener noreferrer">mmauab</a>
         </h1>
-        <p>Centered Horizon • Live RGB Curves • PBR Toggles</p>
+        <p>3D Camera Orbit • Live RGB Curves • PBR Toggles</p>
         <div class="controls">
             <button class="icon-btn" id="theme-toggle" title="Toggle Dark Mode">
                 <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
             </button>
             <button class="icon-btn" id="font-toggle" title="Toggle Font Type">
-                <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+                <svg viewBox="0 0 24 24">
+                    <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-family="monospace" font-size="16" font-weight="bold" fill="currentColor" stroke="none">mn</text>
+                </svg>
             </button>
             <button class="icon-btn" id="dance-toggle" title="Toggle Dance Phase">
-                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                <svg viewBox="0 0 24 24">
+                    <path d="M3 12 Q 8 2, 12 12 T 21 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
             </button>
         </div>
     </div>
 
-    <div class="adv-panel">
-        <div class="slider-group">
-            <div class="slider-row">
-                <span>R Curve</span>
-                <input type="range" id="sl-r" min="-1" max="1" step="0.01" value="0">
+    <div class="adv-panel-wrapper" id="panel-wrapper">
+        <button class="panel-toggle-btn" id="panel-toggle-btn" title="Toggle Panel">
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="adv-panel">
+            <div class="slider-group">
+                <div class="slider-row">
+                    <span>R Curve</span>
+                    <input type="range" id="sl-r" min="-1" max="1" step="0.01" value="0">
+                </div>
+                <div class="slider-row">
+                    <span>G Curve</span>
+                    <input type="range" id="sl-g" min="-1" max="1" step="0.01" value="0">
+                </div>
+                <div class="slider-row">
+                    <span>B Curve</span>
+                    <input type="range" id="sl-b" min="-1" max="1" step="0.01" value="0">
+                </div>
             </div>
-            <div class="slider-row">
-                <span>G Curve</span>
-                <input type="range" id="sl-g" min="-1" max="1" step="0.01" value="0">
+            <div class="pbr-toggles">
+                <button class="pbr-btn" id="btn-rough">Matte</button>
+                <button class="pbr-btn" id="btn-metal">Metal</button>
+                <button class="pbr-btn active" id="btn-trans">Glass</button>
             </div>
-            <div class="slider-row">
-                <span>B Curve</span>
-                <input type="range" id="sl-b" min="-1" max="1" step="0.01" value="0">
-            </div>
-        </div>
-        <div class="pbr-toggles">
-            <button class="pbr-btn" id="btn-rough">Matte</button>
-            <button class="pbr-btn" id="btn-metal">Metal</button>
-            <button class="pbr-btn active" id="btn-trans">Glass</button>
         </div>
     </div>
 
     <script>
         /* =========================================
-           1. INITIAL DEFAULTS & DOM LOGIC
+           1. UI LOGIC (Toggles & Panel)
            ========================================= */
-        let isDarkMode = true;      // Default ON
-        let isDancing = true;       // Default ON
-        let isStandardFont = false; // Default Monospace ON
+        let isDarkMode = true;      
+        let isDancing = true;       
+        let isStandardFont = false; 
 
         const body = document.body;
         const heading = document.getElementById('target-heading');
         const anchor = heading.querySelector('a');
         
-        // Tokenize Text for Animation
         const rawText = anchor.textContent;
         anchor.innerHTML = [...rawText].map((char, index) => {
             const displayChar = char === ' ' ? '&nbsp;' : char;
             return `<span style="--index: ${index}">${displayChar}</span>`;
         }).join('');
 
-        // Apply Initial CSS states
         if (isDarkMode) body.classList.add('dark-mode');
         if (isDancing) heading.classList.add('dance');
 
-        // Main Toggles
         document.getElementById('theme-toggle').addEventListener('click', () => {
             isDarkMode = !isDarkMode;
             body.classList.toggle('dark-mode', isDarkMode);
@@ -351,24 +363,39 @@
             heading.classList.toggle('dance', isDancing);
         });
 
+        const panelWrapper = document.getElementById('panel-wrapper');
+        document.getElementById('panel-toggle-btn').addEventListener('click', () => {
+            panelWrapper.classList.toggle('collapsed');
+        });
+
         /* =========================================
-           2. THREE.JS ENGINE SETUP
+           2. THREE.JS ENGINE & CAMERA SETUP
            ========================================= */
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         
-        // HORIZON SETUP: Puts the fog cutoff line exactly behind the text element
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 12, 70); 
-        camera.lookAt(0, 2, -40); 
 
-        // Exponential fog swallows the back of the plane
-        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.012);
-
-        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        // BUG FIX: Removed 'alpha: true' and explicitly set the scene background
+        // This is necessary because the canvas is now at z-index: 0
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for mobile performance
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
         container.appendChild(renderer.domElement);
+
+        // --- ORBIT CONTROLS ---
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; 
+        controls.dampingFactor = 0.05;
+        controls.enablePan = false;    
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+        controls.minDistance = 30;     
+        controls.maxDistance = 150;    
+        controls.target.set(0, 2, -40); 
+        controls.update();
+
+        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.012);
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
         scene.add(ambientLight);
@@ -383,10 +410,9 @@
         spotLight.penumbra = 0.5;
         scene.add(spotLight);
 
-        const planeGeometry = new THREE.PlaneGeometry(300, 300, 100, 100);
+        const planeGeometry = new THREE.PlaneGeometry(500, 500, 120, 120); 
         planeGeometry.rotateX(-Math.PI / 2); 
 
-        // PBR Material Base
         const planeMaterial = new THREE.MeshPhysicalMaterial({
             color: 0x001133,          
             metalness: 0.1,           
@@ -403,7 +429,7 @@
         scene.add(planeMesh);
 
         /* =========================================
-           3. ADVANCED CONTROLS LOGIC
+           3. ADVANCED CONTROLS MATH
            ========================================= */
         function applyGammaCompression(channel, sliderValue) {
             if (sliderValue === 0) return channel;
@@ -428,7 +454,11 @@
         document.getElementById('sl-b').addEventListener('input', applySmartColors);
 
         function updateLightingAndFog() {
-            scene.fog.color.setHex(isDarkMode ? 0x1a1a1a : 0xf4f4f4);
+            // BUG FIX: Ensure the WebGL background exactly matches the fog for a seamless horizon
+            const bgColor = isDarkMode ? 0x1a1a1a : 0xf4f4f4;
+            scene.background = new THREE.Color(bgColor);
+            scene.fog.color.setHex(bgColor);
+            
             ambientLight.intensity = isDarkMode ? 0.1 : 0.4;
             spotLight.intensity = isDarkMode ? 2.5 : 1.5; 
         }
@@ -464,7 +494,7 @@
         applySmartColors();
 
         /* =========================================
-           4. ANIMATION & RIPPLE PHYSICS
+           4. ANIMATION & INTERACTIVE RIPPLES
            ========================================= */
         const positionAttribute = planeGeometry.attributes.position;
         const ripples = [];
@@ -473,7 +503,6 @@
         const mouse = new THREE.Vector2();
 
         function stirWater(event) {
-            // Support both mouse and touch events
             const clientX = event.touches ? event.touches[0].clientX : event.clientX;
             const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
@@ -501,18 +530,18 @@
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
 
+            controls.update();
+
             for (let i = 0; i < positionAttribute.count; i++) {
                 const x = positionAttribute.getX(i);
                 const z = positionAttribute.getZ(i);
                 let newY = 0;
 
-                // Procedural Bump Map & Swells
                 newY += Math.sin(x * 0.03 + time * 0.8) * 1.5;
                 newY += Math.cos(z * 0.03 + time * 0.6) * 1.5;
                 newY += Math.sin(x * 0.15 + z * 0.1 + time * 1.5) * 0.4;
                 newY += Math.cos(x * 0.1 - z * 0.15 + time * 2.0) * 0.3;
 
-                // Interactive Ripples
                 for (let r = ripples.length - 1; r >= 0; r--) {
                     const ripple = ripples[r];
                     ripple.age += 0.012; 
