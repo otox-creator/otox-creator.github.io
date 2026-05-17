@@ -1,33 +1,543 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic WebGL Water - Advanced Controls</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* Defaults to Monospace */
+        body {
+            font-family: "Menlo", "Consolas", monospace; 
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4; 
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; 
+            transition: background-color 0.3s ease;
+        }
 
-    <head>
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1; 
+        }
+
+        /* Main Center UI */
+        .container {
+            background-color: rgba(255, 255, 255, 0.65); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 3em 3em 2em 3em;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1;
+            pointer-events: none; 
+            transition: background-color 0.3s ease, border 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        h1, p, .controls {
+            pointer-events: auto;
+        }
+
+        h1 { margin: 0 0 1.5em 0; }
+
+        h1 a {
+            text-decoration: none;
+            display: inline-block;
+            -webkit-box-reflect: below -15px linear-gradient(transparent 40%, rgba(0,0,0,0.5));
+            cursor: pointer;
+        }
+
+        h1 span {
+            display: inline-block;
+            font-family: inherit; 
+            font-size: 5rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            color: #fff;
+            -webkit-text-stroke: 1px #d4d4d4; 
+            text-shadow:
+                0 1px 0 #ccc, 0 2px 0 #c9c9c9, 0 3px 0 #bbb,
+                0 4px 0 #b9b9b9, 0 5px 0 #aaa, 0 6px 1px rgba(0,0,0,.1),
+                0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3),
+                0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25),
+                0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15);
+            transition: color 0.3s ease, text-shadow 0.3s ease, -webkit-text-stroke 0.3s ease;
+        }
+
+        .controls {
+            margin-top: 1.5em;
+            width: 100%;
+            display: flex;
+            justify-content: flex-start; 
+            gap: 1.5rem;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s, transform 0.1s;
+        }
+
+        .icon-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .icon-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: #000;
+            transform: scale(1.1);
+        }
+
+        /* --- Dark Mode Palette --- */
+        /* Note: Defaults to ON via JS below, but CSS defines the look */
+        .dark-mode {
+            background-color: #1a1a1a;
+            color: #f4f4f4;
+        }
+        .dark-mode .container {
+            background-color: rgba(40, 40, 40, 0.7);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .dark-mode .icon-btn { color: #ccc; }
+        .dark-mode .icon-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .dark-mode h1 span {
+            color: #00cfff;
+            -webkit-text-stroke: 1px #005588;
+            text-shadow:
+                0 1px 0 #0099cc, 0 2px 0 #0088bb, 0 3px 0 #0077aa,
+                0 4px 0 #006699, 0 5px 0 #005588, 0 6px 1px rgba(0,0,0,.6),
+                0 0 5px rgba(0,0,0,.6), 0 1px 3px rgba(0,0,0,.8),
+                0 3px 5px rgba(0,0,0,.7), 0 5px 10px rgba(0,0,0,.75),
+                0 10px 10px rgba(0,0,0,.7), 0 20px 20px rgba(0,0,0,.65);
+        }
+
+        .standard-font { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
         
-        <style>
-            * { font-family: "Andale Mono", ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace; }
-        </style>
+        /* --- Wave Animation --- */
+        .dance span {
+            animation: wave 1.5s infinite ease-in-out;
+            animation-delay: calc(var(--index) * 0.08s);
+        }
 
-        <title>no</title>
+        @keyframes wave {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-18px); }
+        }
 
-    </head>
+        /* --- Advanced Control Panel (Bottom Right) --- */
+        .adv-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1.2em;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+            z-index: 10;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            color: #333;
+            transition: all 0.3s ease;
+        }
 
-    <body>
+        .dark-mode .adv-panel {
+            background: rgba(30, 30, 30, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #eee;
+        }
 
-        <h2>
-            something 0.1
-        </h2>
-        <br />
-        <h3>
-            
-        </h3>
-
-        <h4>
-            
-        </h4>
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+            font-size: 0.85rem;
+        }
         
-        <br />
+        .slider-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1em;
+        }
 
+        .slider-row input[type=range] {
+            width: 100px;
+            cursor: pointer;
+        }
 
-    </body>
+        .pbr-toggles {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5em;
+        }
 
+        .pbr-btn {
+            flex: 1;
+            padding: 6px;
+            font-size: 0.75rem;
+            background: rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.2);
+            border-radius: 6px;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .dark-mode .pbr-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .pbr-btn:hover {
+            background: rgba(0, 150, 255, 0.3);
+        }
+
+        .pbr-btn.active {
+            background: rgba(0, 200, 255, 0.5);
+            border-color: rgba(0, 255, 255, 0.6);
+            color: #fff;
+        }
+
+        /* Mobile Responsiveness for the Panel */
+        @media (max-width: 600px) {
+            .adv-panel {
+                bottom: 10px;
+                right: 10px;
+                left: 10px; /* Stretch across bottom */
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-around;
+                padding: 1em;
+            }
+            .slider-group {
+                flex: 1;
+                min-width: 200px;
+            }
+            .pbr-toggles {
+                flex: 1;
+                min-width: 200px;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <!-- Main UI -->
+    <div class="container">
+        <h1 id="target-heading">
+            <a href="https://linktr.ee/mmauab" target="_blank" rel="noopener noreferrer">mmauab</a>
+        </h1>
+        <p>Centered Horizon • Live RGB Curves • PBR Toggles</p>
+        <div class="controls">
+            <button class="icon-btn" id="theme-toggle" title="Toggle Dark Mode">
+                <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+            <button class="icon-btn" id="font-toggle" title="Toggle Font Type">
+                <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+            </button>
+            <button class="icon-btn" id="dance-toggle" title="Toggle Dance Phase">
+                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Advanced Control Panel -->
+    <div class="adv-panel">
+        <div class="slider-group">
+            <div class="slider-row">
+                <span>R Curve</span>
+                <input type="range" id="sl-r" min="-1" max="1" step="0.01" value="0">
+            </div>
+            <div class="slider-row">
+                <span>G Curve</span>
+                <input type="range" id="sl-g" min="-1" max="1" step="0.01" value="0">
+            </div>
+            <div class="slider-row">
+                <span>B Curve</span>
+                <input type="range" id="sl-b" min="-1" max="1" step="0.01" value="0">
+            </div>
+        </div>
+        <div class="pbr-toggles">
+            <button class="pbr-btn" id="btn-rough">Matte</button>
+            <button class="pbr-btn" id="btn-metal">Metal</button>
+            <button class="pbr-btn active" id="btn-trans">Glass</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. INITIAL DEFAULTS SETTING ---
+        let isDarkMode = true;      // Default ON
+        let isDancing = true;       // Default ON
+        let isStandardFont = false; // Default Monospace ON
+
+        const body = document.body;
+        const heading = document.getElementById('target-heading');
+        const anchor = heading.querySelector('a');
+        
+        // Tokenize Text
+        const rawText = anchor.textContent;
+        anchor.innerHTML = [...rawText].map((char, index) => {
+            const displayChar = char === ' ' ? '&nbsp;' : char;
+            return `<span style="--index: ${index}">${displayChar}</span>`;
+        }).join('');
+
+        // Apply Initial CSS states
+        if (isDarkMode) body.classList.add('dark-mode');
+        if (isDancing) heading.classList.add('dance');
+
+        // Main Toggles
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            isDarkMode = !isDarkMode;
+            body.classList.toggle('dark-mode', isDarkMode);
+            updateLightingAndFog();
+            applySmartColors();
+        });
+
+        document.getElementById('font-toggle').addEventListener('click', () => {
+            isStandardFont = !isStandardFont;
+            body.classList.toggle('standard-font', isStandardFont);
+        });
+
+        document.getElementById('dance-toggle').addEventListener('click', () => {
+            isDancing = !isDancing;
+            heading.classList.toggle('dance', isDancing);
+        });
+
+        // --- 2. THREE.JS ENGINE ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        
+        // HORIZON FIX: Drop the camera 'Y' and adjust 'lookAt' to level the perspective
+        // This puts the fog cutoff line exactly behind the text element
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 12, 70); 
+        camera.lookAt(0, 2, -40); 
+
+        // Adjust the fog to swallow the back of the plane tightly
+        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.012);
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // Start with dark mode default
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(50, 80, -30);
+        scene.add(dirLight);
+
+        const spotLight = new THREE.SpotLight(0xccffff, 2.5); // Dark mode high spec
+        spotLight.position.set(0, 60, 40);
+        spotLight.angle = Math.PI / 4;
+        spotLight.penumbra = 0.5;
+        scene.add(spotLight);
+
+        const planeGeometry = new THREE.PlaneGeometry(300, 300, 100, 100);
+        planeGeometry.rotateX(-Math.PI / 2); 
+
+        // Initial PBR setup
+        const planeMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x001133,          
+            metalness: 0.1,           
+            roughness: 0.15,          
+            ior: 1.333,               
+            transmission: 0.8,        
+            clearcoat: 1.0,           
+            clearcoatRoughness: 0.1,
+            flatShading: false,       
+            side: THREE.DoubleSide
+        });
+
+        const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+        scene.add(planeMesh);
+
+        // --- 3. ADVANCED CONTROLS LOGIC ---
+
+        // Color Curve Math Engine
+        // sliderValue = -1 (crush/darken), 0 (linear), 1 (brighten/expand)
+        function applyGammaCompression(channel, sliderValue) {
+            if (sliderValue === 0) return channel;
+            // Map the slider to a gamma value: >0 makes gamma < 1 (brighter), <0 makes gamma > 1 (darker)
+            const gamma = Math.pow(2.5, -sliderValue);
+            return Math.pow(channel, gamma);
+        }
+
+        function applySmartColors() {
+            const rCurve = parseFloat(document.getElementById('sl-r').value);
+            const gCurve = parseFloat(document.getElementById('sl-g').value);
+            const bCurve = parseFloat(document.getElementById('sl-b').value);
+
+            // Establish the base un-altered hex color depending on theme
+            const baseColor = new THREE.Color(isDarkMode ? 0x001133 : 0x0055aa);
+            
+            // Apply compression/expansion to each RGB channel
+            baseColor.r = applyGammaCompression(baseColor.r, rCurve);
+            baseColor.g = applyGammaCompression(baseColor.g, gCurve);
+            baseColor.b = applyGammaCompression(baseColor.b, bCurve);
+
+            planeMaterial.color.copy(baseColor);
+        }
+
+        // Bind Sliders
+        document.getElementById('sl-r').addEventListener('input', applySmartColors);
+        document.getElementById('sl-g').addEventListener('input', applySmartColors);
+        document.getElementById('sl-b').addEventListener('input', applySmartColors);
+
+        function updateLightingAndFog() {
+            scene.fog.color.setHex(isDarkMode ? 0x1a1a1a : 0xf4f4f4);
+            ambientLight.intensity = isDarkMode ? 0.1 : 0.4;
+            spotLight.intensity = isDarkMode ? 2.5 : 1.5; 
+        }
+
+        // PBR Toggle Logic
+        let isMatte = false;
+        let isMetal = false;
+        let isGlass = true;
+
+        const btnRough = document.getElementById('btn-rough');
+        const btnMetal = document.getElementById('btn-metal');
+        const btnTrans = document.getElementById('btn-trans');
+
+        btnRough.addEventListener('click', () => {
+            isMatte = !isMatte;
+            planeMaterial.roughness = isMatte ? 0.6 : 0.15;
+            planeMaterial.clearcoat = isMatte ? 0.0 : 1.0;
+            btnRough.classList.toggle('active', isMatte);
+        });
+
+        btnMetal.addEventListener('click', () => {
+            isMetal = !isMetal;
+            planeMaterial.metalness = isMetal ? 0.9 : 0.1;
+            btnMetal.classList.toggle('active', isMetal);
+        });
+
+        btnTrans.addEventListener('click', () => {
+            isGlass = !isGlass;
+            planeMaterial.transmission = isGlass ? 0.8 : 0.0;
+            btnTrans.classList.toggle('active', isGlass);
+        });
+
+        // Initialize scene correctly on load
+        updateLightingAndFog();
+        applySmartColors();
+
+        // --- 4. ANIMATION & RIPPLE PHYSICS ---
+        const positionAttribute = planeGeometry.attributes.position;
+        const ripples = [];
+        const clock = new THREE.Clock();
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function stirWater(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(planeMesh);
+
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                ripples.push({
+                    x: point.x, z: point.z,
+                    age: 0, maxAge: 6.0, strength: 0.8
+                });
+                if (ripples.length > 20) ripples.shift(); 
+            }
+        }
+
+        window.addEventListener('mousemove', stirWater);
+        window.addEventListener('touchmove', (e) => stirWater(e.touches[0]));
+        window.addEventListener('click', stirWater);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            for (let i = 0; i < positionAttribute.count; i++) {
+                const x = positionAttribute.getX(i);
+                const z = positionAttribute.getZ(i);
+                let newY = 0;
+
+                newY += Math.sin(x * 0.03 + time * 0.8) * 1.5;
+                newY += Math.cos(z * 0.03 + time * 0.6) * 1.5;
+                newY += Math.sin(x * 0.15 + z * 0.1 + time * 1.5) * 0.4;
+                newY += Math.cos(x * 0.1 - z * 0.15 + time * 2.0) * 0.3;
+
+                for (let r = ripples.length - 1; r >= 0; r--) {
+                    const ripple = ripples[r];
+                    ripple.age += 0.012; 
+                    
+                    if (ripple.age > ripple.maxAge) {
+                        ripples.splice(r, 1);
+                        continue;
+                    }
+
+                    const dx = x - ripple.x;
+                    const dz = z - ripple.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    const ringRadius = ripple.age * 18; 
+                    const distanceToRing = Math.abs(dist - ringRadius);
+                    
+                    if (distanceToRing < 18) {
+                        const effect = Math.cos(distanceToRing * 0.25) * ripple.strength * (1 - ripple.age / ripple.maxAge);
+                        newY += effect;
+                    }
+                }
+                
+                positionAttribute.setY(i, newY);
+            }
+
+            positionAttribute.needsUpdate = true;
+            planeGeometry.computeVertexNormals();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
 </html>
