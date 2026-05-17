@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Realistic WebGL Water - Advanced Controls</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -16,7 +16,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            /* iOS Fix: Use dvh to prevent Safari address bar jumps */
             min-height: 100vh;
+            min-height: 100dvh; 
             overflow: hidden; 
             transition: background-color 0.3s ease;
         }
@@ -26,7 +28,9 @@
             top: 0;
             left: 0;
             width: 100vw;
+            /* iOS Fix: Use dvh for the WebGL canvas */
             height: 100vh;
+            height: 100dvh; 
             z-index: -1; 
         }
 
@@ -58,12 +62,17 @@
             display: inline-block;
             -webkit-box-reflect: below -15px linear-gradient(transparent 40%, rgba(0,0,0,0.5));
             cursor: pointer;
+            /* iOS Fix: Forces text to never wrap so the reflection stays aligned */
+            white-space: nowrap; 
         }
 
         h1 span {
             display: inline-block;
             font-family: inherit; 
-            font-size: 5rem;
+            
+            /* iOS Fix: Fluid Typography. Scales between 2.5rem and 5rem based on screen width */
+            font-size: clamp(2.5rem, 14vw, 5rem); 
+            
             font-weight: 900;
             letter-spacing: 0.05em;
             color: #fff;
@@ -115,7 +124,6 @@
         }
 
         /* --- Dark Mode Palette --- */
-        /* Note: Defaults to ON via JS below, but CSS defines the look */
         .dark-mode {
             background-color: #1a1a1a;
             color: #f4f4f4;
@@ -223,22 +231,25 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .pbr-btn:hover {
-            background: rgba(0, 150, 255, 0.3);
-        }
-
+        .pbr-btn:hover { background: rgba(0, 150, 255, 0.3); }
         .pbr-btn.active {
             background: rgba(0, 200, 255, 0.5);
             border-color: rgba(0, 255, 255, 0.6);
             color: #fff;
         }
 
-        /* Mobile Responsiveness for the Panel */
+        /* --- iOS Mobile Responsiveness --- */
         @media (max-width: 600px) {
+            .container {
+                /* Shrink the massive desktop padding so the text has room to breathe */
+                padding: 2em 1.5em 1.5em 1.5em; 
+                width: 85%; 
+                box-sizing: border-box;
+            }
             .adv-panel {
-                bottom: 10px;
-                right: 10px;
-                left: 10px; /* Stretch across bottom */
+                bottom: 15px;
+                right: 15px;
+                left: 15px; /* Stretch across bottom */
                 flex-direction: row;
                 flex-wrap: wrap;
                 justify-content: space-around;
@@ -259,7 +270,6 @@
 <body>
     <div id="canvas-container"></div>
     
-    <!-- Main UI -->
     <div class="container">
         <h1 id="target-heading">
             <a href="https://linktr.ee/mmauab" target="_blank" rel="noopener noreferrer">mmauab</a>
@@ -278,7 +288,6 @@
         </div>
     </div>
 
-    <!-- Advanced Control Panel -->
     <div class="adv-panel">
         <div class="slider-group">
             <div class="slider-row">
@@ -302,7 +311,9 @@
     </div>
 
     <script>
-        // --- 1. INITIAL DEFAULTS SETTING ---
+        /* =========================================
+           1. INITIAL DEFAULTS & DOM LOGIC
+           ========================================= */
         let isDarkMode = true;      // Default ON
         let isDancing = true;       // Default ON
         let isStandardFont = false; // Default Monospace ON
@@ -311,7 +322,7 @@
         const heading = document.getElementById('target-heading');
         const anchor = heading.querySelector('a');
         
-        // Tokenize Text
+        // Tokenize Text for Animation
         const rawText = anchor.textContent;
         anchor.innerHTML = [...rawText].map((char, index) => {
             const displayChar = char === ' ' ? '&nbsp;' : char;
@@ -340,32 +351,33 @@
             heading.classList.toggle('dance', isDancing);
         });
 
-        // --- 2. THREE.JS ENGINE ---
+        /* =========================================
+           2. THREE.JS ENGINE SETUP
+           ========================================= */
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         
-        // HORIZON FIX: Drop the camera 'Y' and adjust 'lookAt' to level the perspective
-        // This puts the fog cutoff line exactly behind the text element
+        // HORIZON SETUP: Puts the fog cutoff line exactly behind the text element
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 12, 70); 
         camera.lookAt(0, 2, -40); 
 
-        // Adjust the fog to swallow the back of the plane tightly
+        // Exponential fog swallows the back of the plane
         scene.fog = new THREE.FogExp2(0x1a1a1a, 0.012);
 
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for mobile performance
         container.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // Start with dark mode default
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
         scene.add(ambientLight);
         
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(50, 80, -30);
         scene.add(dirLight);
 
-        const spotLight = new THREE.SpotLight(0xccffff, 2.5); // Dark mode high spec
+        const spotLight = new THREE.SpotLight(0xccffff, 2.5);
         spotLight.position.set(0, 60, 40);
         spotLight.angle = Math.PI / 4;
         spotLight.penumbra = 0.5;
@@ -374,7 +386,7 @@
         const planeGeometry = new THREE.PlaneGeometry(300, 300, 100, 100);
         planeGeometry.rotateX(-Math.PI / 2); 
 
-        // Initial PBR setup
+        // PBR Material Base
         const planeMaterial = new THREE.MeshPhysicalMaterial({
             color: 0x001133,          
             metalness: 0.1,           
@@ -390,13 +402,11 @@
         const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
         scene.add(planeMesh);
 
-        // --- 3. ADVANCED CONTROLS LOGIC ---
-
-        // Color Curve Math Engine
-        // sliderValue = -1 (crush/darken), 0 (linear), 1 (brighten/expand)
+        /* =========================================
+           3. ADVANCED CONTROLS LOGIC
+           ========================================= */
         function applyGammaCompression(channel, sliderValue) {
             if (sliderValue === 0) return channel;
-            // Map the slider to a gamma value: >0 makes gamma < 1 (brighter), <0 makes gamma > 1 (darker)
             const gamma = Math.pow(2.5, -sliderValue);
             return Math.pow(channel, gamma);
         }
@@ -406,18 +416,13 @@
             const gCurve = parseFloat(document.getElementById('sl-g').value);
             const bCurve = parseFloat(document.getElementById('sl-b').value);
 
-            // Establish the base un-altered hex color depending on theme
             const baseColor = new THREE.Color(isDarkMode ? 0x001133 : 0x0055aa);
-            
-            // Apply compression/expansion to each RGB channel
             baseColor.r = applyGammaCompression(baseColor.r, rCurve);
             baseColor.g = applyGammaCompression(baseColor.g, gCurve);
             baseColor.b = applyGammaCompression(baseColor.b, bCurve);
-
             planeMaterial.color.copy(baseColor);
         }
 
-        // Bind Sliders
         document.getElementById('sl-r').addEventListener('input', applySmartColors);
         document.getElementById('sl-g').addEventListener('input', applySmartColors);
         document.getElementById('sl-b').addEventListener('input', applySmartColors);
@@ -428,7 +433,6 @@
             spotLight.intensity = isDarkMode ? 2.5 : 1.5; 
         }
 
-        // PBR Toggle Logic
         let isMatte = false;
         let isMetal = false;
         let isGlass = true;
@@ -456,11 +460,12 @@
             btnTrans.classList.toggle('active', isGlass);
         });
 
-        // Initialize scene correctly on load
         updateLightingAndFog();
         applySmartColors();
 
-        // --- 4. ANIMATION & RIPPLE PHYSICS ---
+        /* =========================================
+           4. ANIMATION & RIPPLE PHYSICS
+           ========================================= */
         const positionAttribute = planeGeometry.attributes.position;
         const ripples = [];
         const clock = new THREE.Clock();
@@ -468,8 +473,12 @@
         const mouse = new THREE.Vector2();
 
         function stirWater(event) {
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // Support both mouse and touch events
+            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObject(planeMesh);
@@ -485,7 +494,7 @@
         }
 
         window.addEventListener('mousemove', stirWater);
-        window.addEventListener('touchmove', (e) => stirWater(e.touches[0]));
+        window.addEventListener('touchmove', stirWater, { passive: true });
         window.addEventListener('click', stirWater);
 
         function animate() {
@@ -497,11 +506,13 @@
                 const z = positionAttribute.getZ(i);
                 let newY = 0;
 
+                // Procedural Bump Map & Swells
                 newY += Math.sin(x * 0.03 + time * 0.8) * 1.5;
                 newY += Math.cos(z * 0.03 + time * 0.6) * 1.5;
                 newY += Math.sin(x * 0.15 + z * 0.1 + time * 1.5) * 0.4;
                 newY += Math.cos(x * 0.1 - z * 0.15 + time * 2.0) * 0.3;
 
+                // Interactive Ripples
                 for (let r = ripples.length - 1; r >= 0; r--) {
                     const ripple = ripples[r];
                     ripple.age += 0.012; 
